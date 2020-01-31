@@ -8,7 +8,7 @@ An indexed multiple readable spsc ring buffer.
  - using RwLock of parking_lot.
 
 # Examples
-
+```rust
 extern crate indexed_ring_buffer;
 use indexed_ring_buffer::*;
 
@@ -26,4 +26,4 @@ assert_eq!(start,101);
 assert_eq!(end,105);
 c.shift_to(105);
 let rslt = r.get_all();
-
+```
