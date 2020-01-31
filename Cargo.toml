@@ -1,0 +1,15 @@
+[package]
+name = "indexed-ring-buffer"
+version = "0.1.0"
+authors = ["fxborg"]
+edition = "2018"
+description = "An indexed multiple readable spsc ring buffer."
+cription = "Helper for serializing byte buffers as hex strings in `serde`"
+documentation = "https://docs.rs/indexed-ring-buffer/"
+readme = "README.md"
+keywords = ["ring-buffer", "spsc"]
+categories = ["concurrency", "data-structures"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+parking_lot = "0.10"
