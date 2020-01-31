@@ -3,6 +3,19 @@ extern crate indexed_ring_buffer;
 use indexed_ring_buffer::{indexed_ring_buffer, Consumer, Producer, Reader};
 
 #[test]
+fn test_minimum(){
+
+    let (mut prod, mut cons, read) = indexed_ring_buffer::<usize>(0, 1);
+
+    assert!(prod.push(0));
+    assert_eq!(cons.shift(), Some((0,0)));
+    assert!(prod.push(1));
+    assert_eq!(cons.shift(), Some((1,1)));
+    assert!(prod.push(2));
+    assert_eq!(cons.shift(), Some((2,2)));
+}
+
+#[test]
 fn test_create() {
     let (mut prod, mut cons, read) = indexed_ring_buffer::<usize>(0, 10);
     assert!(prod.is_empty());
