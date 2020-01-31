@@ -2,10 +2,10 @@ extern crate parking_lot;
 
 use parking_lot::RwLock;
 use std::cell::UnsafeCell;
+use std::cmp::Ordering;
 use std::mem::{self, MaybeUninit};
 use std::ops::Range;
 use std::sync::Arc;
-use std::cmp::Ordering;
 // Maximum buffer size
 const MAX_BUFFER_SIZE: usize = 2_147_483_647;
 
@@ -91,11 +91,11 @@ struct IndexUtil;
 impl IndexUtil {
     /// Returns the ranges.
     pub fn calc_range(head: usize, tail: usize, len: usize) -> (Range<usize>, Range<usize>) {
-        match head.partial_cmp(&tail){
-            Some(Ordering::Less) =>(head..tail, 0..0),
-            Some(Ordering::Greater) =>(head..len, 0..tail),
+        match head.partial_cmp(&tail) {
+            Some(Ordering::Less) => (head..tail, 0..0),
+            Some(Ordering::Greater) => (head..len, 0..tail),
             Some(Ordering::Equal) => (0..0, 0..0),
-            None =>(0..0, 0..0)
+            None => (0..0, 0..0),
         }
     }
     /// Checks if the exists index.
@@ -291,9 +291,8 @@ where
         } else {
             return None;
         }
-        let v: &T = unsafe {
-            &*(buf.get_unchecked(pos) as *const std::mem::MaybeUninit<T> as *const T)
-        };
+        let v: &T =
+            unsafe { &*(buf.get_unchecked(pos) as *const std::mem::MaybeUninit<T> as *const T) };
         Some((idx, *v))
     }
 
@@ -305,14 +304,10 @@ where
         let capacity = buf.len();
         let (a, b) = IndexUtil::calc_range(head, tail, capacity);
 
-        let buf_a: &[T] = unsafe { 
-            &*(&buf[a] as *const [std::mem::MaybeUninit<T>] as *const [T])
-        };
-        let buf_b: &[T] = unsafe {
-            &*(&buf[b] as *const [std::mem::MaybeUninit<T>] as *const [T])
-        };
+        let buf_a: &[T] = unsafe { &*(&buf[a] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
+        let buf_b: &[T] = unsafe { &*(&buf[b] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
         let v = [buf_a, buf_b].concat().to_vec();
-        if !v.is_empty(){
+        if !v.is_empty() {
             Some((offset, offset.wrapping_add(v.len() - 1), v))
         } else {
             None
@@ -344,12 +339,8 @@ where
         }
 
         let (a, b) = IndexUtil::calc_range(range_head, range_tail, capacity);
-        let buf_a: &[T] = unsafe {
-            &*(&buf[a] as *const [std::mem::MaybeUninit<T>] as *const [T])
-        };
-        let buf_b: &[T] = unsafe {
-            &*(&buf[b] as *const [std::mem::MaybeUninit<T>] as *const [T])
-        };
+        let buf_a: &[T] = unsafe { &*(&buf[a] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
+        let buf_b: &[T] = unsafe { &*(&buf[b] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
 
         let v = [buf_a, buf_b].concat().to_vec();
         let v_len = v.len();
