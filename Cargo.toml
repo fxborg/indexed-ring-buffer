@@ -1,11 +1,12 @@
 [package]
 name = "indexed-ring-buffer"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["fxborg"]
 edition = "2018"
 description = "An indexed multiple readable spsc ring buffer."
-cription = "Helper for serializing byte buffers as hex strings in `serde`"
 documentation = "https://docs.rs/indexed-ring-buffer/"
+homepage = "https://github.com/fxborg/indexed-ring-buffer"
+repository = "https://github.com/fxborg/indexed-ring-buffer.git"
 readme = "README.md"
 keywords = ["ring-buffer", "spsc"]
 categories = ["concurrency", "data-structures"]
