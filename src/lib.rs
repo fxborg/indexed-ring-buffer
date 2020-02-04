@@ -44,6 +44,7 @@ pub struct RingBuffer<T> {
     pub(crate) data: UnsafeCell<Box<[MaybeUninit<T>]>>,
     pub(crate) head: RwLock<(usize, usize)>,
     pub(crate) tail: RwLock<usize>,
+    pub(crate) capacity: usize,
 }
 
 impl<T> RingBuffer<T>
@@ -55,22 +56,26 @@ where
         let sz = std::cmp::min(MAX_BUFFER_SIZE, size);
         let mut data = Vec::new();
         data.resize_with(sz + 1, MaybeUninit::uninit);
-
+        let len=data.len();
         Self {
             data: UnsafeCell::new(data.into_boxed_slice()),
             head: RwLock::new((offset, 0)),
             tail: RwLock::new(0),
+            capacity: len,
         }
     }
+ 	#[inline(always)]
     pub fn get_ref(&self) -> &[MaybeUninit<T>] {
         unsafe { &*self.data.get() }
     }
     #[allow(clippy::mut_from_ref)]
+ 	#[inline(always)]
     pub fn get_mut(&self) -> &mut [MaybeUninit<T>] {
         unsafe { &mut *self.data.get() }
     }
 
     /// Checks if the ring buffer is empty.
+ 	#[inline(always)]
     pub fn is_empty(&self) -> bool {
         let (_, head) = *self.head.read();
         let tail = *self.tail.read();
@@ -78,10 +83,11 @@ where
     }
 
     /// Checks if the ring buffer is full.
+ 	#[inline(always)]
     pub fn is_full(&self) -> bool {
         let (_, head) = *self.head.read();
         let tail = *self.tail.read();
-        let capacity = self.get_ref().len();
+        let capacity = self.capacity;
         (tail + 1) % capacity == head
     }
 }
@@ -90,6 +96,7 @@ where
 struct IndexUtil;
 impl IndexUtil {
     /// Returns the ranges.
+ 	#[inline(always)]
     pub fn calc_range(head: usize, tail: usize, len: usize) -> (Range<usize>, Range<usize>) {
         match head.partial_cmp(&tail) {
             Some(Ordering::Less) => (head..tail, 0..0),
@@ -99,6 +106,7 @@ impl IndexUtil {
         }
     }
     /// Checks if the exists index.
+ 	#[inline(always)]
     pub fn exists_index(idx: usize, offset: usize, filled_size: usize) -> Option<usize> {
         let mut rslt = None;
         if idx >= offset {
@@ -146,16 +154,15 @@ where
         let tail = *tail_guard;
         let mut new_tail = tail + 1;
 
-        let buf: &mut [MaybeUninit<T>] = self.buffer.get_mut();
-        let capacity = buf.len();
-
-        if new_tail == capacity {
+        if new_tail == self.buffer.capacity {
             new_tail = 0;
         }
 
         if head == new_tail {
             return false;
         }
+        
+        let buf: &mut [MaybeUninit<T>] = self.buffer.get_mut();
 
         unsafe {
             mem::replace(buf.get_unchecked_mut(tail), MaybeUninit::new(v));
@@ -199,8 +206,7 @@ where
             return None;
         }
 
-        let buf: &mut [MaybeUninit<T>] = self.buffer.get_mut();
-        let capacity = buf.len();
+        let capacity = self.buffer.capacity;
         let filled_size = (tail + capacity - head) % capacity;
         let rslt = IndexUtil::exists_index(to, offset, filled_size);
         let i = rslt?;
@@ -212,7 +218,8 @@ where
         let mut temp_b = Vec::new();
         temp_a.resize_with(a.len(), MaybeUninit::uninit);
         temp_b.resize_with(b.len(), MaybeUninit::uninit);
-
+        
+        let buf: &mut [MaybeUninit<T>] = self.buffer.get_mut();
         buf[a].swap_with_slice(&mut temp_a);
         buf[b].swap_with_slice(&mut temp_b);
 
@@ -239,14 +246,14 @@ where
 
         let mut new_head = head + 1;
 
-        let buf: &mut [MaybeUninit<T>] = self.buffer.get_mut();
-        let capacity = buf.len();
+        let capacity = self.buffer.capacity;
         if new_head == capacity {
             new_head = 0;
         }
 
         let mut temp = MaybeUninit::uninit();
-
+        
+        let buf: &mut [MaybeUninit<T>] = self.buffer.get_mut();
         mem::swap(unsafe { buf.get_unchecked_mut(head) }, &mut temp);
         let temp = unsafe { temp.assume_init() };
 
@@ -281,9 +288,9 @@ where
         let (offset, head, tail) = self.read_index();
         if head == tail {
             return None;
-        }
-        let buf: &[MaybeUninit<T>] = self.buffer.get_ref();
-        let capacity = buf.len();
+        } 
+
+        let capacity = self.buffer.capacity;
         let filled_size = (tail + capacity - head) % capacity;
         let pos;
         if let Some(i) = IndexUtil::exists_index(idx, offset, filled_size) {
@@ -291,6 +298,7 @@ where
         } else {
             return None;
         }
+        let buf: &[MaybeUninit<T>] = self.buffer.get_ref();
         let v: &T =
             unsafe { &*(buf.get_unchecked(pos) as *const std::mem::MaybeUninit<T> as *const T) };
         Some((idx, *v))
@@ -300,10 +308,10 @@ where
     pub fn get_all(&self) -> Option<(usize, usize, Vec<T>)> {
         let (offset, head, tail) = self.read_index();
 
-        let buf: &[MaybeUninit<T>] = self.buffer.get_ref();
-        let capacity = buf.len();
+        let capacity = self.buffer.capacity;
         let (a, b) = IndexUtil::calc_range(head, tail, capacity);
 
+        let buf: &[MaybeUninit<T>] = self.buffer.get_ref();
         let buf_a: &[T] = unsafe { &*(&buf[a] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
         let buf_b: &[T] = unsafe { &*(&buf[b] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
         let v = [buf_a, buf_b].concat().to_vec();
@@ -320,8 +328,7 @@ where
         if head == tail {
             return None;
         }
-        let buf: &[MaybeUninit<T>] = self.buffer.get_ref();
-        let capacity = buf.len();
+        let capacity = self.buffer.capacity;
         let filled_size = (tail + capacity - head) % capacity;
 
         let range_head;
@@ -339,6 +346,8 @@ where
         }
 
         let (a, b) = IndexUtil::calc_range(range_head, range_tail, capacity);
+
+        let buf: &[MaybeUninit<T>] = self.buffer.get_ref();
         let buf_a: &[T] = unsafe { &*(&buf[a] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
         let buf_b: &[T] = unsafe { &*(&buf[b] as *const [std::mem::MaybeUninit<T>] as *const [T]) };
 
@@ -351,6 +360,7 @@ where
         }
     }
 
+ 	#[inline(always)]
     fn read_index(&self) -> (usize, usize, usize) {
         let (offset, head) = *self.buffer.head.read();
         let tail = *self.buffer.tail.read();
