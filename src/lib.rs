@@ -283,6 +283,13 @@ where
     pub fn is_full(&self) -> bool {
         self.buffer.is_full()
     }
+
+    /// Returns the offset.
+    pub fn offset(&self) -> usize {
+        let (offset, _) = *self.buffer.head.read();
+        offset
+    }
+
     ///　Returns the single item from the buffer.
     pub fn get(&self, idx: usize) -> Option<(usize, T)> {
         let (offset, head, tail) = self.read_index();
